@@ -1,0 +1,17 @@
+[
+	{
+		"numseq": 1,
+		"nodo": 1,
+		"prezzo": 345.5
+	},
+	{
+		"numseq": 2,
+		"nodo": 1,
+		"prezzo": 77.23
+	},
+	{
+		"numseq": 3,
+		"nodo": 1,
+		"prezzo": 11.71
+	}
+]
