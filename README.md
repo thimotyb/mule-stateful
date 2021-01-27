@@ -10,4 +10,4 @@ e.g. if you have a two-node cluster, use for each node (if running on the same m
 
 mule -M-Dnode=1 
 
-mule -M-Dnode=2 -M-Dhttp.port=8021
+mule -M-Dnode=2 -M-Dhttp.port=8082
