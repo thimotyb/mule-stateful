@@ -27,6 +27,9 @@ http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/fil
 			<os:default-value ><![CDATA[#[0 as Number]]]></os:default-value>
 		</os:retrieve>
 		<set-variable doc:name="Increment Count +1" doc:id="0418acce-bf7e-4e3c-bbc8-6277e0fec2aa" variableName="count" value="#[vars.count+1]"/>
+		<os:store doc:name="Store" doc:id="7e3e9cfe-1ebc-4636-97a0-5babc2af7097" key="currentCount" objectStore="Counter_Store">
+			<os:value><![CDATA[#[vars.count]]]></os:value>
+		</os:store>
 		<vm:publish doc:name="Publish sequence number to sequence_queue" doc:id="0b77f868-fa40-4634-bef3-5199e5474fdd" config-ref="VM_Config" queueName="sequence_queue">
 			<vm:content ><![CDATA[#[vars.count]]]></vm:content>
 		</vm:publish>
@@ -59,9 +62,6 @@ output application/json
 			</ee:message>
 		</ee:transform>
 		<logger level="INFO" doc:name="Logger" doc:id="7766df10-2152-4b82-8cda-526640ae3f22" message="#['\n*** Node Called: ' ++ p('node') ++ '\nSeq: ' ++ vars.count]" />
-		<os:store doc:name="Store" doc:id="7e3e9cfe-1ebc-4636-97a0-5babc2af7097" key="currentCount" objectStore="Counter_Store">
-			<os:value><![CDATA[#[vars.count]]]></os:value>
-		</os:store>
 		<file:write doc:name="Write" doc:id="f11deb26-00b4-4ba2-805f-111fd1a14f65" config-ref="File_Config" path="counter.json" mode="APPEND"/>
 	</flow>
 </mule>
