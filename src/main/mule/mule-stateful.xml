@@ -1,38 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:os="http://www.mulesoft.org/schema/mule/os"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http"
-	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
-http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
 	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="22847676-db65-428d-b8e0-2e0196543dfb" >
 		<http:listener-connection host="0.0.0.0" port="8081" />
 	</http:listener-config>
 	<os:object-store name="Counter_Store" doc:name="Object store" doc:id="c374f66f-0338-47d2-9e20-9cb5aac3e115" />
 	<configuration-properties doc:name="Configuration properties" doc:id="96e8fa67-d54f-4884-8d25-77fcf24a081e" file="config.yaml" />
-	<flow name="mule-statefulFlow" doc:id="6a790a63-90f0-418b-bca4-da74a29349b0" >
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="42e0fb33-43a5-40d6-b9a2-f879f5c91064" >
+		<vm:queues >
+			<vm:queue queueName="sequence_queue" queueType="PERSISTENT" />
+		</vm:queues>
+	</vm:config>
+	<file:config name="File_Config" doc:name="File Config" doc:id="d94e0202-210f-4efa-a1ca-0315269b140d" >
+		<file:connection workingDir="C:\test" />
+	</file:config>
+	<flow name="ingestionFlow" doc:id="6a790a63-90f0-418b-bca4-da74a29349b0" >
 		<http:listener doc:name="GET /send" doc:id="6874f966-9f72-4f84-86f4-d2c7527cca81" config-ref="HTTP_Listener_config" path="/send" allowedMethods="GET"/>
 		<os:retrieve doc:name="Retrieve currentCount" doc:id="b8127f41-63d2-49ad-a1a3-1a0176718fab" key="currentCount" objectStore="Counter_Store" target="count" targetValue="#[payload as Number]">
 			<os:default-value ><![CDATA[#[0 as Number]]]></os:default-value>
 		</os:retrieve>
 		<set-variable doc:name="Increment Count +1" doc:id="0418acce-bf7e-4e3c-bbc8-6277e0fec2aa" variableName="count" value="#[vars.count+1]"/>
-		<set-variable value="#[p('node')]" doc:name="Set Node" doc:id="d620c797-897a-4b19-b958-fe072c08f0a6" variableName="node"/>
-		<logger level="INFO" doc:name="Logger" doc:id="7766df10-2152-4b82-8cda-526640ae3f22" message="#['\n*** Node Called: ' ++ p('node')]"/>
-		<ee:transform doc:name="Transform Message" doc:id="4d51d67d-a448-443b-a0ae-c8a3e8935031" >
+		<vm:publish doc:name="Publish sequence number to sequence_queue" doc:id="0b77f868-fa40-4634-bef3-5199e5474fdd" config-ref="VM_Config" queueName="sequence_queue">
+			<vm:content ><![CDATA[#[vars.count]]]></vm:content>
+		</vm:publish>
+		<ee:transform doc:name="Transform Message" doc:id="7486448a-9989-4d75-82e4-2e8039c0f5b9" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Processed: " ++ vars.count as String
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="processingFlow" doc:id="24b40d94-d496-4e0f-af92-bc8076c5da91" >
+		<vm:listener doc:name="Listener sequence_queue" doc:id="f61c66a7-328d-4394-9600-b398a25aa071" config-ref="VM_Config" queueName="sequence_queue"/>
+		<set-variable value="#[p('node')]" doc:name="Set Node" doc:id="d620c797-897a-4b19-b958-fe072c08f0a6" variableName="node" />
+		<set-variable value="#[payload as Number]" doc:name="Set Count from Queue" doc:id="df3fdc15-8b13-4aa4-ae46-fad15bce3ee7" variableName="count"/>
+		<ee:transform doc:name="Transform Message" doc:id="4d51d67d-a448-443b-a0ae-c8a3e8935031">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+import * from dw::Runtime
 output application/json
 ---
 [{
 	numseq: vars.count,
 	nodo: vars.node as Number,
 	prezzo: randomInt(1000)
-}]]]></ee:set-payload>
+}] wait 3000]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="7766df10-2152-4b82-8cda-526640ae3f22" message="#['\n*** Node Called: ' ++ p('node') ++ '\nSeq: ' ++ vars.count]" />
 		<os:store doc:name="Store" doc:id="7e3e9cfe-1ebc-4636-97a0-5babc2af7097" key="currentCount" objectStore="Counter_Store">
-			<os:value ><![CDATA[#[vars.count]]]></os:value>
+			<os:value><![CDATA[#[vars.count]]]></os:value>
 		</os:store>
+		<file:write doc:name="Write" doc:id="f11deb26-00b4-4ba2-805f-111fd1a14f65" config-ref="File_Config" path="counter.json" mode="APPEND"/>
 	</flow>
 </mule>
