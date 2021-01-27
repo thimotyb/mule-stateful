@@ -1,6 +1,6 @@
 # mule-stateful
 
-A mule app that demonstrate Persitent Object Storage, and Internal Load Balancing pattern using VM queues.
+A mule app that demonstrate Persistent Object Storage, and Internal Load Balancing pattern using VM queues.
 Create a Cluster and launch the nodes this way:
 
 mule -M-Dnode=<n> -M-Dhttp.port=<port>
